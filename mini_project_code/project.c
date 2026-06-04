@@ -136,4 +136,4 @@ void draw_circle(int cx, int cy, int r) {
         plot_circle_points(cx, cy, x, y);
     }
 }
-
+// Draws triangle border
