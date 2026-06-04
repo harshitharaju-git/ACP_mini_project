@@ -106,3 +106,34 @@ void draw_rectangle(int x, int y, int w, int h) {
             if (x + w - 1 >= 0 && x + w - 1 < COLS) canvas[py][x + w - 1] = '*';
         }
     }
+}
+
+// Midpoint Circle Algorithm helpers
+void plot_circle_points(int cx, int cy, int x, int y) {
+    int px[8] = { cx + x, cx - x, cx + x, cx - x, cx + y, cx - y, cx + y, cx - y };
+    int py[8] = { cy + y, cy + y, cy - y, cy - y, cy + x, cy + x, cy - x, cy - x };
+    for (int i = 0; i < 8; i++) {
+        if (px[i] >= 0 && px[i] < COLS && py[i] >= 0 && py[i] < ROWS) {
+            canvas[py[i]][px[i]] = '*';
+        }
+    }
+}
+
+void draw_circle(int cx, int cy, int r) {
+    if (r < 0) return;
+    int x = 0;
+    int y = r;
+    int d = 3 - 2 * r;
+    plot_circle_points(cx, cy, x, y);
+    while (y >= x) {
+        x++;
+        if (d > 0) {
+            y--;
+            d = d + 4 * (x - y) + 10;
+        } else {
+            d = d + 4 * x + 6;
+        }
+        plot_circle_points(cx, cy, x, y);
+    }
+}
+
