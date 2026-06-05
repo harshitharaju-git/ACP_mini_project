@@ -1,18 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <curses.h>
 #define ROWS 20
 #define COLS 60
 #define MAX_SHAPES 50
-
 typedef enum {
     CIRCLE,
     RECTANGLE,
     LINE,
     TRIANGLE
 } ShapeType;
-
 typedef struct {
     int id;
     ShapeType type;
@@ -23,17 +21,14 @@ typedef struct {
     int radius;
     int width, height;
 } Shape;
-
 Shape shapes[MAX_SHAPES];
 int num_shapes = 0;
 char canvas[ROWS][COLS];
-
-// Helper absolute value function
+WINDOW *canvas_win;
+WINDOW *menu_win;
 int absolute(int n) {
     return n < 0 ? -n : n;
 }
-
-// Fills the 2D array canvas with underscores
 void clear_canvas() {
     for (int r = 0; r < ROWS; r++) {
         for (int c = 0; c < COLS; c++) {
@@ -41,30 +36,6 @@ void clear_canvas() {
         }
     }
 }
-
-// Function to display the picture
-void display_picture() {
-    printf("\n--- CURRENT PICTURE CANVAS ---\n");
-    printf("   ");
-    for (int c = 0; c < COLS; c++) printf("%d", c % 10);
-    printf("\n  +");
-    for (int c = 0; c < COLS; c++) printf("-");
-    printf("+\n");
-
-    for (int r = 0; r < ROWS; r++) {
-        printf("%2d|", r);
-        for (int c = 0; c < COLS; c++) {
-            printf("%c", canvas[r][c]);
-        }
-        printf("|\n");
-    }
-
-    printf("  +");
-    for (int c = 0; c < COLS; c++) printf("-");
-    printf("+\n");
-    printf("------------------------------\n");
-}
-
 // Bresenham's Line Algorithm
 void draw_line(int x1, int y1, int x2, int y2) {
     int dx = absolute(x2 - x1);
@@ -72,7 +43,6 @@ void draw_line(int x1, int y1, int x2, int y2) {
     int sx = (x1 < x2) ? 1 : -1;
     int sy = (y1 < y2) ? 1 : -1;
     int err = dx - dy;
-
     while (1) {
         if (x1 >= 0 && x1 < COLS && y1 >= 0 && y1 < ROWS) {
             canvas[y1][x1] = '*';
@@ -89,7 +59,6 @@ void draw_line(int x1, int y1, int x2, int y2) {
         }
     }
 }
-
 // Draws rectangle border
 void draw_rectangle(int x, int y, int w, int h) {
     for (int i = 0; i < w; i++) {
@@ -107,7 +76,6 @@ void draw_rectangle(int x, int y, int w, int h) {
         }
     }
 }
-
 // Midpoint Circle Algorithm helpers
 void plot_circle_points(int cx, int cy, int x, int y) {
     int px[8] = { cx + x, cx - x, cx + x, cx - x, cx + y, cx - y, cx + y, cx - y };
@@ -118,7 +86,6 @@ void plot_circle_points(int cx, int cy, int x, int y) {
         }
     }
 }
-
 void draw_circle(int cx, int cy, int r) {
     if (r < 0) return;
     int x = 0;
@@ -136,4 +103,57 @@ void draw_circle(int cx, int cy, int r) {
         plot_circle_points(cx, cy, x, y);
     }
 }
-// Draws triangle border
+// Draws triangle by connecting 3 points
+void draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3) {
+    draw_line(x1, y1, x2, y2);
+    draw_line(x2, y2, x3, y3);
+    draw_line(x3, y3, x1, y1);
+}
+// Redraws all shapes onto canvas
+void render_all() {
+    clear_canvas();
+    for (int i = 0; i < num_shapes; i++) {
+        if (shapes[i].is_active) {
+            switch (shapes[i].type) {
+                case CIRCLE:
+                    draw_circle(shapes[i].x1, shapes[i].y1, shapes[i].radius);
+                    break;
+                case RECTANGLE:
+                    draw_rectangle(shapes[i].x1, shapes[i].y1, shapes[i].width, shapes[i].height);
+                    break;
+                case LINE:
+                    draw_line(shapes[i].x1, shapes[i].y1, shapes[i].x2, shapes[i].y2);
+                    break;
+                case TRIANGLE:
+                    draw_triangle(shapes[i].x1, shapes[i].y1, shapes[i].x2, shapes[i].y2, shapes[i].x3, shapes[i].y3);
+                    break;
+            }
+        }
+    }
+}
+// Displays canvas to ncurses window
+void update_canvas_window() {
+    werase(canvas_win);
+    box(canvas_win, 0, 0);
+    
+    // Draw title on the border
+    wattron(canvas_win, COLOR_PAIR(2) | A_BOLD);
+    mvwprintw(canvas_win, 0, 2, " Drawing Canvas (2D grid: %dx%d) ", COLS, ROWS);
+    wattroff(canvas_win, COLOR_PAIR(2) | A_BOLD);
+    // Render characters
+    for (int r = 0; r < ROWS; r++) {
+        for (int c = 0; c < COLS; c++) {
+            char ch = canvas[r][c];
+            if (ch == '*') {
+                wattron(canvas_win, COLOR_PAIR(3) | A_BOLD);
+                mvwaddch(canvas_win, r + 1, c + 1, ch);
+                wattroff(canvas_win, COLOR_PAIR(3) | A_BOLD);
+            } else {
+                wattron(canvas_win, COLOR_PAIR(1));
+                mvwaddch(canvas_win, r + 1, c + 1, ch);
+                wattroff(canvas_win, COLOR_PAIR(1));
+            }
+        }
+    }
+    wrefresh(canvas_win);
+}
